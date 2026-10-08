@@ -5,6 +5,7 @@ import { PORTS, SERVICE_URLS } from '../shared/config.js';
 import { logRequest } from '../shared/service.js';
 import { createClients } from './clients.js';
 import { composeDashboard } from './bff.js';
+import { createGraphQL } from './graphql.js';
 
 const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -29,6 +30,9 @@ export function createGatewayApp({ urls = SERVICE_URLS, gqlMode = process.env.GQ
       res.status(e.status === 404 ? 404 : 502).json({ error: e.message });
     }
   });
+
+  const yoga = createGraphQL({ urls, mode: gqlMode });
+  app.use(yoga.graphqlEndpoint, yoga); // POST /graphql; GET /graphql mở GraphiQL
 
   return app;
 }

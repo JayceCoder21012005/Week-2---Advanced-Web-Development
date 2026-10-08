@@ -51,3 +51,52 @@ test('BFF: product chậm hơn timeout → partial trong ~1s', async () => {
     assert.match(vm.errors[0].message, /timeout after 1000ms/);
   } finally { s.close(); }
 });
+
+test('GraphQL naive: N+1 — product nhận 5 call cho 5 đơn', async () => {
+  const s = await startInProcess({ gqlMode: 'naive' });
+  try {
+    const body = await gql(s.url);
+    assert.equal(body.data.user.orders.length, 5);
+    assert.equal(s.product.calls, 5);
+  } finally { s.close(); }
+});
+
+test('GraphQL loader: 1 call product, dữ liệu trùng khớp BFF', async () => {
+  const s = await startInProcess({ gqlMode: 'loader' });
+  try {
+    const body = await gql(s.url);
+    assert.deepEqual([s.product.calls, s.product.dbQueries], [1, 1]);
+    const bff = await (await fetch(`${s.url}/bff/web/dashboard/u1`)).json();
+    assert.deepEqual(body.data.user, bff.user);
+  } finally { s.close(); }
+});
+
+test('GraphQL loader: DataLoader theo từng request — 2 request = 2 call', async () => {
+  const s = await startInProcess({ gqlMode: 'loader' });
+  try {
+    await gql(s.url);
+    await gql(s.url);
+    assert.equal(s.product.calls, 2);
+  } finally { s.close(); }
+});
+
+test('GraphQL: user không tồn tại → user null, không lỗi', async () => {
+  const s = await startInProcess();
+  try {
+    const body = await gql(s.url, 'nope');
+    assert.equal(body.data.user, null);
+    assert.equal(body.errors, undefined);
+  } finally { s.close(); }
+});
+
+test('GraphQL: product lỗi → partial, product null, errors có path từng đơn', async () => {
+  const s = await startInProcess({ fault: 'error' });
+  try {
+    const body = await gql(s.url);
+    assert.equal(body.data.user.name, 'Nguyễn Văn An');
+    assert.ok(body.data.user.orders.every((o) => o.product === null));
+    assert.deepEqual(body.errors.map((e) => e.path.join('.')).sort(),
+      [0, 1, 2, 3, 4].map((i) => `user.orders.${i}.product`).sort());
+    assert.equal(body.errors[0].message, '/products → HTTP 503');
+  } finally { s.close(); }
+});
