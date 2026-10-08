@@ -2,27 +2,39 @@ PASS [small, GQL_MODE=naive] baseline == BFF
 PASS [small, GQL_MODE=naive] baseline == GraphQL
   5 đơn; GraphQL → product calls=5, db=5
 PASS [small, GQL_MODE=naive] N+1: product calls == số đơn (5)
+PASS [small, GQL_MODE=naive] mobile: baseline == BFF == GraphQL
+PASS [small, GQL_MODE=naive] mobile: BFF và GraphQL chỉ trả id, status, product{name, thumbnail}
+  payload BFF: web 1049 B → mobile 526 B; GraphQL mobile → product calls=5
 PASS [small, GQL_MODE=loader] baseline == BFF
 PASS [small, GQL_MODE=loader] baseline == GraphQL
   5 đơn; GraphQL → product calls=1, db=1
 PASS [small, GQL_MODE=loader] sau sửa: product calls == 1
+PASS [small, GQL_MODE=loader] mobile: baseline == BFF == GraphQL
+PASS [small, GQL_MODE=loader] mobile: BFF và GraphQL chỉ trả id, status, product{name, thumbnail}
+  payload BFF: web 1049 B → mobile 526 B; GraphQL mobile → product calls=1
 PASS [large, GQL_MODE=naive] baseline == BFF
 PASS [large, GQL_MODE=naive] baseline == GraphQL
   200 đơn; GraphQL → product calls=200, db=200
 PASS [large, GQL_MODE=naive] N+1: product calls == số đơn (200)
+PASS [large, GQL_MODE=naive] mobile: baseline == BFF == GraphQL
+PASS [large, GQL_MODE=naive] mobile: BFF và GraphQL chỉ trả id, status, product{name, thumbnail}
+  payload BFF: web 38157 B → mobile 19830 B; GraphQL mobile → product calls=200
 PASS [large, GQL_MODE=loader] baseline == BFF
 PASS [large, GQL_MODE=loader] baseline == GraphQL
   200 đơn; GraphQL → product calls=1, db=1
 PASS [large, GQL_MODE=loader] sau sửa: product calls == 1
-  [fault=error] baseline: 7ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 → HTTP 503"
+PASS [large, GQL_MODE=loader] mobile: baseline == BFF == GraphQL
+PASS [large, GQL_MODE=loader] mobile: BFF và GraphQL chỉ trả id, status, product{name, thumbnail}
+  payload BFF: web 38157 B → mobile 19830 B; GraphQL mobile → product calls=1
+  [fault=error] baseline: 8ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 → HTTP 503"
 PASS [fault=error] baseline: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=error] bff: 34ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
+  [fault=error] bff: 35ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
 PASS [fault=error] bff: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=error] graphql: 24ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
+  [fault=error] graphql: 27ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
 PASS [fault=error] graphql: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] baseline: 5050ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 timeout after 1000ms"
+  [fault=slow] baseline: 5068ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 timeout after 1000ms"
 PASS [fault=slow] baseline: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] bff: 1047ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
+  [fault=slow] bff: 1046ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
 PASS [fault=slow] bff: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] graphql: 1025ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
+  [fault=slow] graphql: 1040ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
 PASS [fault=slow] graphql: giữ user + đơn, product null, 1 lỗi/đơn

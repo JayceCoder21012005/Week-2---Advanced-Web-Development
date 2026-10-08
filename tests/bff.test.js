@@ -46,3 +46,17 @@ test('product lỗi → partial: giữ user + đơn, product null, 1 lỗi mỗi
     { path: ['user', 'orders', 1, 'product'], message: '/products → HTTP 503' },
   ]);
 });
+
+test('mobile: chỉ trả id, status, product.name, product.thumbnail; vẫn 1 batch đã dedup', async () => {
+  const { composeMobileOrders } = await import('../gateway/bff.js');
+  const { clients, batches } = fakeClients({ orders: [order('o1', 'p1'), order('o2', 'p1')] });
+  const vm = await composeMobileOrders(clients, 'u1');
+  assert.deepEqual(batches, [['p1']]);
+  assert.deepEqual(vm, {
+    orders: [
+      { id: 'o1', status: 'paid', product: { name: 'N-p1', thumbnail: 't' } },
+      { id: 'o2', status: 'paid', product: { name: 'N-p1', thumbnail: 't' } },
+    ],
+    errors: [],
+  });
+});

@@ -25,7 +25,7 @@ function build(seed, nOrders, nProducts) {
   const pick = (arr) => arr[Math.floor(rand() * arr.length)];
   const products = NAMES.slice(0, nProducts).map((name, i) => ({
     id: `p${i + 1}`, name, price: (Math.floor(rand() * 50) + 1) * 10000,
-    thumbnail: `https://picsum.photos/seed/p${i + 1}/64`, category: pick(['accessory', 'audio', 'storage', 'network']),
+    thumbnail: `/thumbs/p${i + 1}.svg`, category: pick(['accessory', 'audio', 'storage', 'network']),
   }));
   const orders = [];
   const add = (userId, n) => {

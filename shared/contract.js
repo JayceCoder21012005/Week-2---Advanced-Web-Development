@@ -7,6 +7,10 @@ export const toProductView = (p) => (p ? { id: p.id, name: p.name, price: p.pric
 export const toOrderView = (o, p) => ({
   id: o.id, qty: o.qty, unitPrice: o.unitPrice, status: o.status, createdAt: o.createdAt, product: toProductView(p),
 });
+/** Mobile chỉ cần: mã đơn, trạng thái, tên product, thumbnail. */
+export const toMobileOrderView = (o, p) => ({
+  id: o.id, status: o.status, product: p ? { name: p.name, thumbnail: p.thumbnail } : null,
+});
 /** Cùng hình dạng với lỗi GraphQL: path tới field product của đơn thứ i. */
 export const productError = (index, message) => ({ path: ['user', 'orders', index, 'product'], message });
 
@@ -39,5 +43,12 @@ export const DASHBOARD_QUERY = `query Dashboard($userId: ID!) {
   user(id: $userId) {
     id name email
     orders { id qty unitPrice status createdAt product { id name price thumbnail } }
+  }
+}`;
+
+/** Cùng schema, cùng endpoint — client mobile chỉ chọn field nó cần. */
+export const MOBILE_ORDERS_QUERY = `query MobileOrders($userId: ID!) {
+  user(id: $userId) {
+    orders { id status product { name thumbnail } }
   }
 }`;

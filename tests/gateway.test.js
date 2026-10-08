@@ -138,3 +138,55 @@ test('User Service sập → fetcher GraphQL báo lỗi, không coi là "không 
     await assert.rejects(createFetchers({ services: {}, gateway: gw.url }).graphql('u1'));
   } finally { s.close(); close(gw.server); }
 });
+
+/** Response mobile chỉ được chứa đúng các key mobile cần. */
+function assertMobileShape(orders) {
+  for (const o of orders) {
+    assert.deepEqual(Object.keys(o).sort(), ['id', 'product', 'status']);
+    if (o.product) assert.deepEqual(Object.keys(o.product).sort(), ['name', 'thumbnail']);
+  }
+}
+
+test('BFF mobile: endpoint riêng, chỉ field mobile, 1 call product', async () => {
+  const s = await startInProcess();
+  try {
+    const vm = await (await fetch(`${s.url}/bff/mobile/orders/u1`)).json();
+    assert.deepEqual(Object.keys(vm).sort(), ['errors', 'orders']);
+    assert.equal(vm.orders.length, 5);
+    assertMobileShape(vm.orders);
+    assert.equal(s.product.calls, 1);
+    assert.equal((await fetch(`${s.url}/bff/mobile/orders/nope`)).status, 404);
+  } finally { s.close(); }
+});
+
+test('GraphQL MobileOrders: cùng endpoint, query khác → chỉ field mobile, khớp BFF mobile', async () => {
+  const { MOBILE_ORDERS_QUERY } = await import('../shared/contract.js');
+  const s = await startInProcess({ gqlMode: 'loader' });
+  try {
+    const body = await fetch(`${s.url}/graphql`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: MOBILE_ORDERS_QUERY, variables: { userId: 'u1' } }),
+    }).then((r) => r.json());
+    assert.deepEqual(Object.keys(body.data.user), ['orders']);
+    assertMobileShape(body.data.user.orders);
+    assert.equal(s.product.calls, 1);
+    const bff = await (await fetch(`${s.url}/bff/mobile/orders/u1`)).json();
+    assert.deepEqual(body.data.user.orders, bff.orders);
+  } finally { s.close(); }
+});
+
+test('fetchers.mobile: baseline, BFF, GraphQL trả cùng dữ liệu mobile', async () => {
+  const { createFetchers } = await import('../web/fetchers.js');
+  const u = createUserApp({ dataset: 'small' });
+  const o = createOrderApp({ dataset: 'small' });
+  const p = createProductApp({ dataset: 'small' });
+  const [us, os, ps] = await Promise.all([listen(u.app), listen(o.app), listen(p.app)]);
+  const gw = await listen(createGatewayApp({ urls: { user: us.url, order: os.url, product: ps.url } }));
+  try {
+    const f = createFetchers({ services: { user: us.url, order: os.url, product: ps.url }, gateway: gw.url });
+    const [base, bff, gql] = [await f.mobile.baseline('u1'), await f.mobile.bff('u1'), await f.mobile.graphql('u1')];
+    assert.equal(base.orders.length, 5);
+    assert.deepEqual(bff, base);
+    assert.deepEqual(gql, base);
+  } finally { close(us.server, os.server, ps.server, gw.server); }
+});

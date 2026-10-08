@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đơn hàng — Mobile</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px system-ui, sans-serif; color: #1f2937; background: #e5e7eb; }
+    .phone { max-width: 400px; min-height: 100vh; margin: 0 auto; background: #f9fafb; }
+    header { position: sticky; top: 0; background: #111827; color: #fff; padding: 12px 16px; }
+    header h1 { margin: 0; font-size: 17px; }
+    header small { color: #9ca3af; }
+    nav { display: flex; gap: 6px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+    nav a { flex: 1; text-align: center; padding: 6px 0; border-radius: 999px; font-size: 13px; text-decoration: none; color: #374151; background: #f3f4f6; }
+    nav a.active { background: #111827; color: #fff; }
+    #errors { margin: 8px 16px 0; color: #b45309; font-size: 13px; }
+    ul { list-style: none; margin: 0; padding: 8px 16px 24px; }
+    li { display: flex; gap: 12px; align-items: center; padding: 10px; margin-top: 8px; background: #fff; border-radius: 12px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+    li img, li .noimg { width: 48px; height: 48px; flex: none; border-radius: 8px; background: #e5e7eb; object-fit: cover; }
+    li .noimg { display: grid; place-items: center; font-size: 20px; }
+    .name { font-weight: 600; }
+    .name.warn { color: #b45309; font-weight: 500; }
+    .meta { font-size: 13px; color: #6b7280; }
+    .badge { margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e5e7eb; }
+    .badge.delivered { background: #d1fae5; color: #065f46; }
+    .badge.shipped { background: #dbeafe; color: #1e40af; }
+    .badge.paid { background: #ede9fe; color: #5b21b6; }
+    .badge.pending { background: #fef3c7; color: #92400e; }
+    .badge.cancelled { background: #fee2e2; color: #991b1b; }
+    footer { padding: 0 16px 16px; font-size: 12px; color: #6b7280; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <header><h1 id="title">Đơn hàng của tôi</h1><small id="timing">Đang tải…</small></header>
+    <nav>
+      <a data-variant="baseline" href="?variant=baseline">Baseline</a>
+      <a data-variant="bff" href="?variant=bff">BFF</a>
+      <a data-variant="graphql" href="?variant=graphql">GraphQL</a>
+    </nav>
+    <p id="errors"></p>
+    <ul id="orders"></ul>
+    <footer><a href="dashboard.html">🖥 Bản web</a></footer>
+  </div>
+  <script type="module" src="mobile.js"></script>
+</body>
+</html>

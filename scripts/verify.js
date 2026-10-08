@@ -32,6 +32,23 @@ for (const dataset of ['small', 'large']) {
       log(`  ${n} đơn; GraphQL → product calls=${m.product.calls}, db=${m.product.dbQueries}`);
       if (mode === 'naive') await check(`${tag} N+1: product calls == số đơn (${n})`, () => assert.equal(m.product.calls, n));
       else await check(`${tag} sau sửa: product calls == 1`, () => assert.equal(m.product.calls, 1));
+
+      // Mobile: cùng dữ liệu giữa 3 biến thể + chỉ chứa field mobile cần
+      const mBase = await fetchers.mobile.baseline('u1');
+      const mBff = await fetchers.mobile.bff('u1');
+      await resetMetrics();
+      const mGql = await fetchers.mobile.graphql('u1');
+      const mm = await readMetrics();
+      await check(`${tag} mobile: baseline == BFF == GraphQL`, () => { assert.deepEqual(mBff, mBase); assert.deepEqual(mGql, mBase); });
+      await check(`${tag} mobile: BFF và GraphQL chỉ trả id, status, product{name, thumbnail}`, () => {
+        assert.deepEqual(Object.keys(mBff).sort(), ['errors', 'orders']);
+        for (const o of [...mBff.orders, ...mGql.orders]) {
+          assert.deepEqual(Object.keys(o).sort(), ['id', 'product', 'status']);
+          assert.deepEqual(Object.keys(o.product).sort(), ['name', 'thumbnail']);
+        }
+      });
+      const bytes = (x) => Buffer.byteLength(JSON.stringify(x));
+      log(`  payload BFF: web ${bytes(bff)} B → mobile ${bytes(mBff)} B; GraphQL mobile → product calls=${mm.product.calls}`);
     } finally { await stack.stop(); }
   }
 }

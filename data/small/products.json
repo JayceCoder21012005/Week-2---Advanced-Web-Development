@@ -3,21 +3,21 @@
     "id": "p1",
     "name": "Bàn phím cơ",
     "price": 310000,
-    "thumbnail": "https://picsum.photos/seed/p1/64",
+    "thumbnail": "/thumbs/p1.svg",
     "category": "audio"
   },
   {
     "id": "p2",
     "name": "Chuột không dây",
     "price": 430000,
-    "thumbnail": "https://picsum.photos/seed/p2/64",
+    "thumbnail": "/thumbs/p2.svg",
     "category": "storage"
   },
   {
     "id": "p3",
     "name": "Tai nghe Bluetooth",
     "price": 90000,
-    "thumbnail": "https://picsum.photos/seed/p3/64",
+    "thumbnail": "/thumbs/p3.svg",
     "category": "storage"
   }
 ]
