@@ -5,7 +5,7 @@
   "scripts": {
     "seed": "node scripts/seed.js",
     "start": "concurrently -k -n user,order,product,gw \"node services/user/index.js\" \"node services/order/index.js\" \"node services/product/index.js\" \"node gateway/index.js\"",
-    "test": "node --test tests/",
+    "test": "node --test \"tests/*.test.js\"",
     "smoke": "node scripts/smoke.js",
     "trace": "node scripts/trace.js",
     "verify": "node scripts/verify.js",
