@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo: API Composition với Baseline REST, BFF và GraphQL</title>
+<style>
+  :root { --fg: #1f2937; --muted: #6b7280; --bg: #ffffff; --line: #e5e7eb; --code: #f3f4f6; --accent: #1d4ed8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e5e7eb; --muted: #9ca3af; --bg: #111827; --line: #374151; --code: #1f2937; --accent: #93c5fd; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 30px; line-height: 1.25; }
+  h2 { margin-top: 48px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { margin-top: 32px; }
+  a { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--code); }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  pre { background: var(--code); padding: 12px 14px; border-radius: 8px; overflow-x: auto; line-height: 1.45; }
+  pre code { padding: 0; background: none; }
+  img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; margin: 6px 0; background: #fff; }
+  em { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<h1>Báo cáo: API Composition với Baseline REST, BFF và GraphQL</h1>
+<p><em>Web nâng cao, tuần 2, block 2. Toàn bộ số liệu là kết quả chạy thật trên máy của nhóm (Windows 11, Node 26, Microsoft Edge) ngày 2026-10-08. Cách chạy lại có trong <code>README.md</code>.</em></p>
+<hr>
+<h2>1. Bài toán và kết quả cuối cùng</h2>
+<p>Có <strong>hai loại client dùng chung dữ liệu</strong>, nằm ở <strong>ba service độc lập</strong>. Mỗi service có CSDL riêng, ở đây là một file JSON riêng.</p>
+<table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Cần hiển thị</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Dashboard web</td>
+<td>Tên user, danh sách đơn đầy đủ field (mã, số lượng, đơn giá, trạng thái, ngày) và tên product</td>
+</tr>
+<tr>
+<td>App mobile</td>
+<td>Danh sách đơn, mỗi đơn chỉ cần mã đơn, trạng thái, tên product và thumbnail</td>
+</tr>
+</tbody></table>
+<p>Nhóm dựng <strong>ba biến thể</strong>. Cả ba đọc cùng ba service, chỉ khác <strong>nơi ghép dữ liệu</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Biến thể</th>
+<th>Nơi ghép</th>
+<th>Web gọi</th>
+<th>Mobile gọi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Baseline</strong></td>
+<td>Browser</td>
+<td><code>GET /users/u1</code>, <code>GET /orders?userId=u1</code>, rồi <code>GET /products/:id</code> cho từng đơn (tuần tự)</td>
+<td>Giống web, rồi tự cắt bớt field</td>
+</tr>
+<tr>
+<td><strong>BFF</strong></td>
+<td>Gateway, mỗi client một endpoint</td>
+<td><code>GET /bff/web/dashboard/u1</code></td>
+<td><code>GET /bff/mobile/orders/u1</code></td>
+</tr>
+<tr>
+<td><strong>GraphQL</strong></td>
+<td>Gateway, một endpoint cho mọi client</td>
+<td><code>POST /graphql</code> với query <code>Dashboard</code></td>
+<td><code>POST /graphql</code> với query <code>MobileOrders</code></td>
+</tr>
+</tbody></table>
+<p><strong>Tiêu chí đạt của đề và kết quả:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tiêu chí</th>
+<th>Kết quả</th>
+<th>Bằng chứng</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Baseline, BFF và GraphQL trả cùng dữ liệu dashboard cho cùng user</td>
+<td>✅ Đạt, cả web lẫn mobile, cả bộ small và large</td>
+<td><code>npm run verify</code> → <code>results/verify.txt</code> (so sánh bằng <code>deepStrictEqual</code>)</td>
+</tr>
+<tr>
+<td>Ở BFF và GraphQL, response mobile chỉ chứa field mobile cần</td>
+<td>✅ Đạt: chỉ có <code>id</code>, <code>status</code>, <code>product.name</code>, <code>product.thumbnail</code></td>
+<td>test <code>BFF mobile…</code>, <code>GraphQL MobileOrders…</code>; <code>verify</code> kiểm tra đúng tập key</td>
+</tr>
+<tr>
+<td>Sau khi sửa N+1, số call tới Product Service không tăng theo số đơn</td>
+<td>✅ Đạt: naive 5 → 200 call; DataLoader <strong>1 → 1 call</strong></td>
+<td><code>results/trace-graphql-*.log</code>, <code>results/summary.md</code></td>
+</tr>
+<tr>
+<td>Product chậm hoặc lỗi: một policy chung, không bịa dữ liệu</td>
+<td>✅ Trả dữ liệu một phần, đánh dấu lỗi theo từng đơn, timeout 1 s</td>
+<td><code>verify</code> phần fault; test <code>product chậm hơn timeout…</code></td>
+</tr>
+<tr>
+<td>Số liệu là kết quả chạy thật</td>
+<td>✅ 96 lần đo, ghi từng lần</td>
+<td><code>results/raw.csv</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. Kiến trúc</h2>
+<pre><code>            ┌───────────────────────── gateway :4000 (Express) ─────────────────────────┐
+browser ────┤ static: dashboard.html (web), mobile.html (mobile), /thumbs/*.svg          │
+(web/mobile)│ GET  /bff/web/dashboard/:userId     ─┐                                     │
+            │ GET  /bff/mobile/orders/:userId     ─┼─ BFF    (gateway/bff.js)            │
+            │ POST /graphql  (Dashboard | MobileOrders) ── GraphQL (gateway/graphql.js)  │
+            └───────────────────────────────┬────────────────────────────────────────────┘
+   baseline: browser gọi thẳng (CORS)       │ fetch + x-request-id
+            ▼                               ▼
+   user-service :4001  ← data/&lt;ds&gt;/users.json
+   order-service :4002 ← data/&lt;ds&gt;/orders.json
+   product-service :4003 ← data/&lt;ds&gt;/products.json   (có GET /products?ids=a,b,c để lấy theo lô)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Thư mục</th>
+<th>Vai trò</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>services/{user,order,product}</code></td>
+<td>Ba service REST độc lập, mỗi service đọc đúng một file JSON</td>
+</tr>
+<tr>
+<td><code>shared/service.js</code></td>
+<td>Khung chung cho service: CORS, bộ đếm <code>calls</code> và <code>dbQueries</code>, log trace</td>
+</tr>
+<tr>
+<td><code>shared/contract.js</code></td>
+<td>View-model, định dạng lỗi, hai query GraphQL. <strong>Dùng chung cho browser và Node</strong></td>
+</tr>
+<tr>
+<td><code>gateway/</code></td>
+<td>BFF (<code>bff.js</code>), GraphQL + DataLoader (<code>graphql.js</code>), client gọi service (<code>clients.js</code>)</td>
+</tr>
+<tr>
+<td><code>web/</code></td>
+<td><code>dashboard.html</code>/<code>app.js</code> (web), <code>mobile.html</code>/<code>mobile.js</code> (mobile), <code>fetchers.js</code> (3 biến thể × 2 client)</td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td><code>seed</code>, <code>smoke</code>, <code>trace</code>, <code>verify</code>, <code>bench</code>, <code>report</code></td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>24 test <code>node:test</code> (unit + integration)</td>
+</tr>
+<tr>
+<td><code>results/</code></td>
+<td>Kết quả đo thật: CSV, bảng tổng hợp, waterfall, trace</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Các lựa chọn của nhóm và lý do</h2>
+<p>Mỗi mục dưới đây trả lời ba câu: nhóm <strong>chọn</strong> gì, <strong>vì sao</strong>, và <strong>vì sao không chọn</strong> các phương án khác.</p>
+<h3>3.1. Runtime và framework: Node.js 26 + Express 5</h3>
+<p><strong>Chọn Node.js + Express</strong> vì:</p>
+<ul>
+<li>Cả ba service, gateway và trang web đều viết bằng <strong>cùng một ngôn ngữ</strong>. Nhờ vậy <code>shared/contract.js</code> (view-model, định dạng lỗi, query GraphQL) chạy được <strong>cả trên browser lẫn server</strong>. Ba biến thể và hai client dùng chung một định nghĩa dữ liệu, nên phép so sánh không bị lệch vì mỗi bên ghép dữ liệu một kiểu.</li>
+<li>Node 26 có sẵn <code>fetch</code>, <code>AbortSignal.timeout</code>, <code>node:test</code> và <code>import.meta.main</code>. Không cần thêm axios, Jest hay ts-node.</li>
+<li>Express là framework HTTP phổ biến nhất của Node, mỗi service chỉ khoảng 20 dòng. Express 5 tự bắt lỗi của handler async.</li>
+<li>Ba service + gateway khởi động trong khoảng 1 s. Điều này quan trọng vì bench phải <strong>khởi động lại cả stack 16 lần</strong> để đo chế độ lạnh.</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Spring Boot</strong> (Java)</td>
+<td>Mỗi service là một JVM, khởi động vài giây và tốn vài trăm MB RAM. Chạy 4 JVM rồi khởi động lại 16 lần để đo lạnh sẽ rất chậm, và JIT của JVM làm lần lạnh lệch xa lần ấm. Phải viết lại view-model ở hai ngôn ngữ (Java và JS). Nhiều boilerplate so với thời lượng 65 phút.</td>
+</tr>
+<tr>
+<td><strong>NestJS</strong></td>
+<td>Mạnh cho dự án lớn (DI, module, decorator), nhưng bài này chỉ có 3 endpoint mỗi service. Kiến trúc module/DI che mất phần cần trình bày là luồng ghép dữ liệu.</td>
+</tr>
+<tr>
+<td><strong>Fastify</strong> (+ Mercurius cho GraphQL)</td>
+<td>Nhanh hơn Express, nhưng bài này đo <strong>so sánh tương đối</strong> giữa các biến thể chạy trên cùng framework, nên tốc độ framework không ảnh hưởng kết luận. Express quen thuộc hơn với nhóm.</td>
+</tr>
+<tr>
+<td><strong>TypeScript</strong></td>
+<td>Kiểu dữ liệu chặt hơn nhưng cần bước build hoặc ts-node. Code ngắn, đã có test và <code>verify</code> kiểm tra hình dạng dữ liệu.</td>
+</tr>
+</tbody></table>
+<h3>3.2. Lưu trữ: mỗi service một file JSON, đi qua một lớp repository</h3>
+<p><strong>Chọn file JSON</strong> vì thầy yêu cầu &quot;bỏ data vào một file JSON&quot;. Để giữ đúng tinh thần <strong>database-per-service</strong>:</p>
+<ul>
+<li>Mỗi service chỉ đọc file của chính nó (<code>users.json</code>, <code>orders.json</code>, <code>products.json</code>). Không service nào đọc file của service khác.</li>
+<li>File được nạp vào RAM lúc khởi động. Mọi truy cập đi qua các hàm repository (<code>findById</code>, <code>findByUser</code>, <code>findByIds</code>), mỗi hàm được bọc bởi <code>db()</code> để <strong>đếm DB query</strong>:<pre><code class="language-js">const db = (fn) =&gt; (...args) =&gt; { metrics.dbQueries++; return fn(...args); };
+</code></pre>
+</li>
+<li>Product Service có thêm <code>findByIds</code> (1 query cho cả lô), tương đương <code>WHERE id IN (...)</code> trong SQL. Đây là điều kiện để BFF và DataLoader gom được nhiều product vào một lần gọi.</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SQLite / PostgreSQL / MongoDB</strong></td>
+<td>Thật hơn, nhưng thầy đã yêu cầu JSON. Cần cài đặt, migration, connection pool, làm khó tái lập trên máy chấm. Độ trễ I/O của DB còn trộn vào kết quả, làm mờ thứ cần đo là <strong>số lượng</strong> call/query.</td>
+</tr>
+<tr>
+<td><strong>Một file JSON chung cho 3 service</strong></td>
+<td>Vi phạm database-per-service. Khi đó service có thể tự JOIN, và bài toán ghép dữ liệu không còn tồn tại.</td>
+</tr>
+<tr>
+<td><strong><code>json-server</code></strong></td>
+<td>Dựng REST từ JSON rất nhanh, nhưng khó chèn bộ đếm DB query, khó thêm batch endpoint <code>?ids=</code> đúng ngữ nghĩa và khó gây lỗi có chủ đích.</td>
+</tr>
+</tbody></table>
+<h3>3.3. Dữ liệu mẫu: script seed có seed cố định</h3>
+<p><strong>Chọn <code>scripts/seed.js</code></strong> với bộ sinh số ngẫu nhiên có seed cố định (mulberry32, seed 42):</p>
+<ul>
+<li>Chạy lại lúc nào cũng ra <strong>đúng cùng dữ liệu</strong>, nên số liệu của nhóm tái lập được.</li>
+<li>Hai bộ dữ liệu: <strong>small</strong> (u1 có 5 đơn, 3 product) và <strong>large</strong> (u1 có 200 đơn, 20 product). <strong>Product lặp giữa các đơn</strong> để có cái mà dedup, đúng như đề yêu cầu.</li>
+<li><code>u2</code> có thêm 3 đơn để kiểm tra Order Service lọc đúng theo user.</li>
+</ul>
+<p><strong>Không chọn</strong> <code>@faker-js/faker</code>: thêm dependency, dữ liệu thay đổi mỗi lần chạy nếu không cố định seed, mà bài này chỉ cần tên, giá, trạng thái đơn giản. <strong>Không chọn</strong> gõ JSON bằng tay: 200 đơn quá dài và khó đảm bảo có product lặp.</p>
+<p>Thumbnail là <strong>ảnh SVG do gateway tự sinh</strong> (<code>/thumbs/p1.svg</code>), thay cho ảnh từ internet (picsum.photos). Khi thử ảnh internet, ảnh không tải được và làm demo phụ thuộc mạng.</p>
+<h3>3.4. BFF và GraphQL chạy chung một process gateway</h3>
+<p><strong>Chọn một gateway chứa cả BFF và GraphQL</strong> vì:</p>
+<ul>
+<li>Hai biến thể chạy trên <strong>cùng một process, cùng cổng, cùng code gọi service</strong> (<code>gateway/clients.js</code>). Khác biệt đo được chỉ đến từ cách ghép dữ liệu, không phải do hạ tầng.</li>
+<li>Gateway cũng phục vụ trang web, nên browser gọi BFF và GraphQL cùng origin, không cần CORS.</li>
+</ul>
+<p><strong>Không chọn</strong> tách BFF và GraphQL thành hai server riêng. Trong thực tế mỗi BFF thường là một service riêng của từng team client, nhưng ở đây việc tách chỉ thêm process mà không đổi kết quả đo. Nhóm ghi nhận điểm này trong phần trade-off.</p>
+<h3>3.5. BFF: mỗi client một endpoint, dùng chung phần lấy dữ liệu</h3>
+<p><code>gateway/bff.js</code> tách thành hai lớp:</p>
+<ul>
+<li><code>loadOrdersWithProducts()</code> (dùng chung): gọi <strong>user và orders song song</strong> (<code>Promise.all</code>), <strong>dedup</strong> productId bằng <code>new Set</code>, rồi <strong>gọi 1 batch</strong> <code>GET /products?ids=…</code>.</li>
+<li><code>composeDashboard()</code> (web) và <code>composeMobileOrders()</code> (mobile): chỉ khác <strong>bước cắt field</strong> ở cuối.</li>
+</ul>
+<p><strong>Lý do:</strong> đây đúng là ý tưởng BFF, mỗi loại client có endpoint cho đúng màn hình của nó, server quyết định field nào được trả. Tách phần dùng chung giúp thêm client mới chỉ tốn một hàm khoảng 3 dòng và một route.</p>
+<p><strong>Không chọn</strong> một endpoint BFF chung có tham số <code>?fields=…</code>: làm vậy là tự xây lại GraphQL kém hơn, và mất ý nghĩa &quot;mỗi client một endpoint&quot; mà đề yêu cầu.</p>
+<h3>3.6. GraphQL server: <code>graphql-yoga</code></h3>
+<p><strong>Chọn graphql-yoga</strong> vì:</p>
+<ul>
+<li>Gắn vào Express chỉ cần một dòng <code>app.use(&#39;/graphql&#39;, yoga)</code>. Có sẵn <strong>GraphiQL</strong> tại <code>GET /graphql</code> để demo, thử query web rồi query mobile ngay trên trình duyệt.</li>
+<li>Dựa trên chuẩn Fetch API và tuân theo GraphQL-over-HTTP. Ít dependency, cấu hình ngắn.</li>
+<li>Mặc định trả <strong>dữ liệu một phần kèm <code>errors[]</code> có <code>path</code></strong> khi một field nullable lỗi, đúng với policy lỗi nhóm đã chọn. Nhóm chỉ cần đặt <code>maskedErrors: false</code> để giữ message lỗi thật.</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Apollo Server</strong></td>
+<td>Phổ biến nhất, nhưng tích hợp với Express cần thêm package riêng và cấu hình nhiều hơn. Nhiều tính năng (federation, Apollo Studio) không dùng tới trong bài này.</td>
+</tr>
+<tr>
+<td><strong>express-graphql</strong></td>
+<td>Đã ngừng phát triển (archived), không còn được khuyến nghị.</td>
+</tr>
+<tr>
+<td><strong>graphql-http</strong></td>
+<td>Là bản tham chiếu tối giản, không có GraphiQL đi kèm, demo bất tiện.</td>
+</tr>
+<tr>
+<td><strong>Mercurius</strong></td>
+<td>Chỉ dành cho Fastify.</td>
+</tr>
+</tbody></table>
+<h3>3.7. Sửa N+1: thư viện <code>dataloader</code>, tạo mới cho mỗi request</h3>
+<p><strong>Vấn đề:</strong> resolver <code>Order.product</code> chạy một lần cho mỗi đơn. Nếu nó gọi thẳng <code>GET /products/:id</code> (chế độ <code>GQL_MODE=naive</code>) thì 200 đơn sinh ra 200 call. Nhóm giữ lại chế độ này để <strong>tái hiện</strong> N+1 và đo trước/sau trên cùng code.</p>
+<p><strong>Chọn <code>dataloader</code></strong> (thư viện chuẩn của GraphQL Foundation):</p>
+<ul>
+<li><strong>Batching:</strong> mọi <code>load(id)</code> trong cùng một tick của event loop được gom thành <strong>một</strong> lần gọi <code>GET /products?ids=…</code>.</li>
+<li><strong>Dedup và cache:</strong> <code>load(&#39;p1&#39;)</code> hai lần chỉ thành một key.</li>
+<li><strong>Phạm vi một request:</strong> loader được tạo trong <code>context</code> của mỗi request, đúng như đề yêu cầu (&quot;dedup trong phạm vi một request&quot;). Dữ liệu của request này không lọt sang request khác. Test <code>2 request = 2 call</code> chứng minh điều này.</li>
+<li>Id không tồn tại trả về một <code>Error</code> ở đúng vị trí trong mảng kết quả, nên chỉ đơn đó bị đánh lỗi <code>404</code>, giống baseline.</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Tự viết batch trong resolver <code>User.orders</code></strong> (lấy trước mọi product rồi gắn vào đơn)</td>
+<td>Chạy được, nhưng resolver cha phải biết resolver con cần gì. Thêm một field con khác lại phải sửa resolver cha, và mất tính độc lập của resolver.</td>
+</tr>
+<tr>
+<td><strong>Phân tích query trước (lookahead)</strong> để quyết định join</td>
+<td>Phức tạp, dễ sai, không cần thiết cho 1 quan hệ.</td>
+</tr>
+<tr>
+<td><strong>Cache toàn cục</strong> (dùng chung loader cho mọi request)</td>
+<td>Đúng là giảm call, nhưng trả dữ liệu cũ và có thể lộ dữ liệu giữa các user. Đề cũng yêu cầu dedup trong phạm vi một request.</td>
+</tr>
+</tbody></table>
+<h3>3.8. Một endpoint GraphQL, hai query cho hai client</h3>
+<p>Schema và resolver <strong>giữ nguyên</strong> cho cả hai client. Mobile chỉ gửi query khác:</p>
+<pre><code class="language-graphql">query Dashboard($userId: ID!) {          # web
+  user(id: $userId) { id name email
+    orders { id qty unitPrice status createdAt product { id name price thumbnail } } } }
+
+query MobileOrders($userId: ID!) {       # mobile
+  user(id: $userId) { orders { id status product { name thumbnail } } } }
+</code></pre>
+<p><strong>Lý do:</strong> đây là điểm khác biệt cốt lõi so với BFF. Thêm client mới <strong>không cần sửa hay deploy lại server</strong>. <code>Order.product</code> được khai báo <strong>nullable</strong> có chủ đích, để khi Product lỗi thì chỉ field đó thành <code>null</code> thay vì làm hỏng cả cây dữ liệu.</p>
+<h3>3.9. Frontend: HTML + JavaScript thuần (ES modules), mobile là trang web khung điện thoại</h3>
+<p><strong>Chọn HTML/JS thuần</strong> vì:</p>
+<ul>
+<li>Không cần bundler. Gateway phục vụ file tĩnh, browser import thẳng <code>shared/contract.js</code>, <strong>cùng file</strong> mà server dùng.</li>
+<li>Một hàm <code>render()</code> cho mỗi client, dùng cho cả ba biến thể. Thời gian đo được không bị trộn với chi phí của framework (React hydration, virtual DOM).</li>
+<li>Mốc &quot;màn hình hoàn tất&quot; rõ ràng: <code>performance.mark(&#39;done&#39;)</code> ngay sau khi ghi DOM.</li>
+</ul>
+<p><strong>Mobile</strong> là <code>web/mobile.html</code> (khung 390 px, danh sách thẻ, thumbnail, badge trạng thái) và được đo bằng viewport điện thoại trong Playwright.</p>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>React / Vue / Vite</strong></td>
+<td>Đẹp và quen thuộc hơn, nhưng thêm bước build, thêm thời gian khởi động trang vào số đo, không thêm giá trị cho bài so sánh.</td>
+</tr>
+<tr>
+<td><strong>React Native / Flutter</strong> cho mobile</td>
+<td>Phải cài SDK hoặc emulator, khó đo tự động cùng một công cụ với web, khó tái lập trên máy chấm. Trang web mobile đủ để chứng minh điều đề yêu cầu: response mobile chỉ chứa field mobile cần.</td>
+</tr>
+</tbody></table>
+<h3>3.10. Gọi service: <code>fetch</code> có sẵn + <code>x-request-id</code></h3>
+<p><strong>Chọn <code>fetch</code> có sẵn của Node</strong> cùng <code>AbortSignal.timeout()</code>. Không thêm dependency, và <strong>cùng một hàm <code>getJson()</code></strong> chạy được cả trên browser (baseline) lẫn trên gateway. Nhờ vậy lỗi có cùng định dạng ở mọi biến thể: <code>&quot;/products → HTTP 503&quot;</code> hoặc <code>&quot;/products timeout after 1000ms&quot;</code>.</p>
+<p><strong>Không chọn axios hoặc got:</strong> chúng không cần thiết khi <code>fetch</code> đã có sẵn, và sẽ làm code browser khác code server.</p>
+<h3>3.11. Policy lỗi: dữ liệu một phần có đánh dấu lỗi, timeout 1 s</h3>
+<p>Đề yêu cầu chọn <strong>một</strong> policy cho cả BFF và GraphQL: thất bại toàn bộ, <strong>hoặc</strong> trả dữ liệu một phần có đánh dấu lỗi.</p>
+<p><strong>Nhóm chọn dữ liệu một phần có đánh dấu lỗi:</strong></p>
+<ul>
+<li>Product chậm (&gt; 1 s) hoặc lỗi thì vẫn trả <strong>HTTP 200</strong> gồm user và danh sách đơn. Mỗi đơn có <code>product: null</code> kèm một lỗi <code>{ path: [&#39;user&#39;,&#39;orders&#39;,i,&#39;product&#39;], message }</code>.</li>
+<li><strong>Không bịa</strong> tên hay giá product. Đơn giá vẫn hiển thị vì đó là <code>unitPrice</code> thật của Order Service (giá lúc đặt). UI hiển thị &quot;⚠ không tải được product&quot;.</li>
+<li>Ở GraphQL đây là hành vi chuẩn (field nullable cộng <code>errors[]</code> có <code>path</code>). Ở BFF, nhóm tạo <code>errors[]</code> <strong>cùng hình dạng</strong>, để web và mobile dùng chung một cách hiển thị.</li>
+</ul>
+<p><strong>Vì sao không chọn thất bại toàn bộ:</strong> tên product chỉ là thông tin bổ sung. User vẫn cần xem đơn, trạng thái, số lượng. Nếu thất bại toàn bộ, một service phụ hỏng sẽ kéo sập cả màn hình.</p>
+<p><strong>Vì sao timeout 1 s:</strong> gấp hơn 10 lần thời gian bình thường của một lần gọi product (khoảng 2–10 ms ở localhost), nhưng đủ ngắn để màn hình không treo lâu.</p>
+<p><strong>Không làm</strong> retry hay circuit breaker (ví dụ thư viện <code>opossum</code>): đề chỉ yêu cầu chọn policy. Retry còn làm số call biến động, gây nhiễu cho phép đếm. Nhóm ghi nhận đây là giới hạn ở mục 5.</p>
+<p>Product Service gây lỗi có chủ đích bằng biến môi trường <code>PRODUCT_FAULT=error</code> (trả 503) hoặc <code>PRODUCT_FAULT=slow</code> (chậm <code>PRODUCT_DELAY_MS</code>, mặc định 2000 ms).</p>
+<h3>3.12. Đếm service call, DB query và dựng trace: middleware + log có <code>x-request-id</code></h3>
+<p><strong>Chọn cách tự đếm</strong> trong <code>shared/service.js</code>:</p>
+<ul>
+<li>Middleware <code>calls++</code> cho mỗi request mà service nhận.</li>
+<li>Wrapper <code>db()</code> để <code>dbQueries++</code> cho mỗi lần gọi repository.</li>
+<li><code>GET /metrics</code> để đọc và <code>POST /metrics/reset</code> để xoá bộ đếm trước mỗi lần đo. Hai endpoint này <strong>không bị đếm</strong>, có test kiểm tra.</li>
+<li>Gateway sinh <code>x-request-id</code> cho mỗi request và truyền xuống mọi service. Mỗi service log một dòng <code>giờ [rid] service METHOD url</code>. <code>npm run trace</code> gom các dòng này thành <strong>trace N+1 trước/sau</strong> và <strong>call graph của BFF</strong>.</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>OpenTelemetry + Jaeger/Zipkin</strong></td>
+<td>Chuẩn công nghiệp cho distributed tracing, nhưng phải chạy thêm collector và UI (thường bằng Docker). Quá nặng cho thứ cần đo ở đây là <strong>đếm</strong> call và query. Ý tưởng <code>x-request-id</code> của nhóm chính là phiên bản tối giản của trace context.</td>
+</tr>
+<tr>
+<td><strong>ELK / Loki</strong> cho log</td>
+<td>Cùng lý do: hạ tầng nặng, trong khi log ra stdout đã đủ để dựng trace của một request.</td>
+</tr>
+<tr>
+<td><strong>Đếm ở phía client</strong> (DevTools Network)</td>
+<td>Chỉ thấy request từ browser, <strong>không thấy</strong> call nội bộ giữa gateway và service, mà đó lại là nơi N+1 của GraphQL xảy ra.</td>
+</tr>
+</tbody></table>
+<h3>3.13. Đo thời gian và waterfall: Playwright + Resource Timing trên Edge</h3>
+<p><strong>Chọn Playwright</strong> (<code>scripts/bench.js</code>) điều khiển <strong>trình duyệt thật</strong>:</p>
+<ul>
+<li>Mở trang thật, chờ <code>window.__done</code> (mốc <code>performance.mark(&#39;done&#39;)</code> sau khi render), đọc <strong>Resource Timing API</strong> để lấy số request, thời điểm bắt đầu/kết thúc và kích thước response.</li>
+<li>Tự động hóa cả quy trình: với mỗi tổ hợp <strong>dataset × client × biến thể</strong> (16 tổ hợp), khởi động lại stack, chạy <strong>1 lần lạnh và 5 lần ấm</strong>, mỗi lần dùng browser context mới (không cache), reset bộ đếm trước mỗi lần. Kết quả là 96 dòng trong <code>raw.csv</code>, bảng <strong>median [min–max]</strong>, và <strong>waterfall</strong> vẽ từ dữ liệu thật.</li>
+<li>Dùng <code>channel: &#39;msedge&#39;</code>: Edge có sẵn trên Windows, <strong>không phải tải Chromium</strong> (khoảng 150 MB).</li>
+</ul>
+<p><strong>Không chọn:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Phương án</th>
+<th>Lý do không chọn</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Chụp DevTools bằng tay</strong></td>
+<td>Không lặp lại được 96 lần, dễ sai, không xuất ra CSV.</td>
+</tr>
+<tr>
+<td><strong>Lighthouse</strong></td>
+<td>Đo các chỉ số tổng quát (LCP, TBT…), không có mốc tuỳ chỉnh &quot;danh sách đã render&quot;, không đếm được call nội bộ.</td>
+</tr>
+<tr>
+<td><strong>k6 / autocannon / JMeter</strong></td>
+<td>Là công cụ đo tải phía server. Chúng không chạy JavaScript của trang, nên không đo được baseline (vốn ghép dữ liệu trong browser) và không đo được thời gian màn hình hoàn tất.</td>
+</tr>
+<tr>
+<td><strong>Puppeteer</strong></td>
+<td>Tương đương Playwright, nhưng Playwright có API chờ (<code>waitForFunction</code>), context cô lập và chọn channel Edge tiện hơn.</td>
+</tr>
+</tbody></table>
+<p><strong>Định nghĩa &quot;màn hình hoàn tất&quot;:</strong> thời điểm <code>render()</code> ghi xong danh sách vào DOM, tính từ navigation start. Mốc này <strong>không chờ ảnh thumbnail tải xong</strong>, để thời gian không phụ thuộc vào ảnh.</p>
+<h3>3.14. Đối chiếu dữ liệu: script <code>verify</code> với <code>assert.deepStrictEqual</code></h3>
+<p><code>npm run verify</code> khởi động stack thật cho từng tổ hợp (small/large × naive/loader, cùng hai chế độ lỗi) và kiểm tra:</p>
+<ol>
+<li>Baseline, BFF và GraphQL trả <strong>cùng</strong> dữ liệu, cho cả web và mobile.</li>
+<li>Response mobile của BFF và GraphQL <strong>chỉ có</strong> đúng các key cho phép.</li>
+<li>Product calls bằng số đơn ở chế độ naive, và bằng 1 ở chế độ loader.</li>
+<li>Khi Product lỗi hoặc chậm: vẫn giữ user và đơn, product là <code>null</code>, mỗi đơn có một lỗi.</li>
+</ol>
+<p><strong>Lý do:</strong> tiêu chí đạt của đề là các điều kiện kiểm tra được bằng máy. So sánh tự động chính xác và lặp lại được hơn so bằng mắt hai cửa sổ trình duyệt.</p>
+<h3>3.15. Kiểm thử: <code>node:test</code> có sẵn</h3>
+<p><strong>Chọn <code>node:test</code> + <code>node:assert</code></strong>: có sẵn trong Node, không cần cấu hình. Test integration dựng <strong>ba service và gateway trong cùng process trên cổng ngẫu nhiên</strong>, nên không đụng tới cổng 4000–4003 và chạy được khi <code>npm start</code> đang mở.</p>
+<p><strong>Không chọn Jest, Vitest hay Mocha + supertest:</strong> thêm dependency và cấu hình cho ESM, trong khi <code>node:test</code> đã đủ cho 24 test.</p>
+<h3>3.16. Chạy nhiều service: <code>concurrently</code>, không dùng Docker</h3>
+<p><strong>Chọn <code>concurrently</code></strong>: một lệnh <code>npm start</code> chạy 4 process, log có tiền tố tên service (<code>[user]</code>, <code>[order]</code>…), thuận tiện để demo trace trực tiếp trong terminal.</p>
+<p><strong>Không chọn Docker Compose:</strong> gần với môi trường triển khai thật hơn, nhưng yêu cầu máy chấm cài Docker. Mạng ảo của Docker cũng thêm độ trễ khác với localhost và làm số đo khó so sánh. Mỗi lần khởi động lại để đo lạnh cũng chậm hơn nhiều.</p>
+<h3>3.17. Tài liệu API: bảng endpoint trong README + GraphiQL</h3>
+<ul>
+<li>REST: README có bảng endpoint của từng service và của BFF.</li>
+<li>GraphQL: <strong>schema chính là tài liệu</strong>. GraphiQL tại <code>/graphql</code> có sẵn phần tra cứu schema và tự gợi ý field.</li>
+</ul>
+<p><strong>Không chọn Swagger/OpenAPI:</strong> có ích khi API lớn hoặc cần sinh client tự động. Ở đây mỗi service chỉ có 1–2 endpoint, viết spec OpenAPI sẽ dài hơn cả code.</p>
+<hr>
+<h2>4. Kết quả đo</h2>
+<h3>4.1. Bảng tổng hợp</h3>
+<p>Median của 5 lần ấm, kèm [min–max]. Bảng đầy đủ có cả lần lạnh nằm trong <code>results/summary.md</code>, từng lần đo nằm trong <code>results/raw.csv</code>.</p>
+<p><strong>Bộ large (u1 có 200 đơn, 20 product):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Biến thể</th>
+<th>Request từ browser</th>
+<th>Payload (B)</th>
+<th>Product calls / DB query</th>
+<th>Màn hình hoàn tất (ms)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>web</td>
+<td>baseline</td>
+<td>202</td>
+<td>46 493</td>
+<td>200 / 200</td>
+<td>413.3 [346.8–511]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>bff</td>
+<td><strong>1</strong></td>
+<td>38 157</td>
+<td><strong>1 / 1</strong></td>
+<td>74.1 [70.1–104.7]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>graphql-naive</td>
+<td><strong>1</strong></td>
+<td>38 154</td>
+<td>200 / 200</td>
+<td>171.3 [155.8–402.6]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>graphql-loader</td>
+<td><strong>1</strong></td>
+<td>38 154</td>
+<td><strong>1 / 1</strong></td>
+<td>95.7 [82.5–121.6]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>baseline</td>
+<td>202</td>
+<td>46 493</td>
+<td>200 / 200</td>
+<td>417.7 [363.2–472.1]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>bff</td>
+<td><strong>1</strong></td>
+<td><strong>19 830</strong></td>
+<td><strong>1 / 1</strong></td>
+<td>78.6 [63.3–97.2]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>graphql-naive</td>
+<td><strong>1</strong></td>
+<td>19 836</td>
+<td>200 / 200</td>
+<td>118 [96.5–168.7]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>graphql-loader</td>
+<td><strong>1</strong></td>
+<td><strong>19 836</strong></td>
+<td><strong>1 / 1</strong></td>
+<td>56.9 [53.6–61.6]</td>
+</tr>
+</tbody></table>
+<p><strong>Bộ small (u1 có 5 đơn, 3 product):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Biến thể</th>
+<th>Request từ browser</th>
+<th>Payload (B)</th>
+<th>Product calls</th>
+<th>Màn hình hoàn tất (ms)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>web</td>
+<td>baseline</td>
+<td>7</td>
+<td>1 219</td>
+<td>5</td>
+<td>116.2 [110.6–140.3]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>bff</td>
+<td>1</td>
+<td>1 049</td>
+<td>1</td>
+<td>68 [63.1–71.5]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>graphql-naive</td>
+<td>1</td>
+<td>1 046</td>
+<td>5</td>
+<td>89.7 [80.1–157.7]</td>
+</tr>
+<tr>
+<td>web</td>
+<td>graphql-loader</td>
+<td>1</td>
+<td>1 046</td>
+<td>1</td>
+<td>77.6 [71.1–98.7]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>baseline</td>
+<td>7</td>
+<td>1 219</td>
+<td>5</td>
+<td>103.7 [83.7–261.1]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>bff</td>
+<td>1</td>
+<td>526</td>
+<td>1</td>
+<td>52.1 [48.2–74.5]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>graphql-naive</td>
+<td>1</td>
+<td>532</td>
+<td>5</td>
+<td>56.7 [53.7–64.7]</td>
+</tr>
+<tr>
+<td>mobile</td>
+<td>graphql-loader</td>
+<td>1</td>
+<td>532</td>
+<td>1</td>
+<td>52.9 [51.3–69.8]</td>
+</tr>
+</tbody></table>
+<p>User và Order luôn nhận 1 call và 1 DB query ở mọi biến thể.</p>
+<h3>4.2. Nhận xét</h3>
+<ol>
+<li><strong>Request từ client:</strong> baseline cần 2 + N request (7 với small, 202 với large) và <strong>phải chạy tuần tự</strong>. BFF và GraphQL luôn chỉ <strong>1</strong>.</li>
+<li><strong>N+1 và cách sửa:</strong> baseline và GraphQL naive gọi Product <strong>theo số đơn</strong> (5 rồi 200). BFF và GraphQL dùng DataLoader <strong>luôn chỉ 1 call</strong>, dù có 5 hay 200 đơn.</li>
+<li><strong>Thời gian, bộ large:</strong><ul>
+<li>Baseline chậm nhất, khoảng 415 ms, vì 202 request tuần tự.</li>
+<li>GraphQL naive 118–171 ms: 200 call của nó chạy trong mạng nội bộ và song song, nhưng vẫn chậm gần gấp đôi bản dùng loader.</li>
+<li>BFF và GraphQL loader 57–96 ms, nhanh hơn baseline khoảng 4–7 lần.</li>
+<li>Giữa BFF và GraphQL loader không có bên nào thắng rõ: BFF nhanh hơn ở web, GraphQL nhanh hơn ở mobile, và khoảng min–max của chúng chồng lên nhau.</li>
+</ul>
+</li>
+<li><strong>Payload của mobile:</strong> BFF và GraphQL gửi cho mobile <strong>khoảng 52%</strong> số byte của web (19.8 KB so với 38.2 KB). Baseline mobile vẫn nhận <strong>46.5 KB, y như web</strong>, vì REST trả cả object rồi client mới cắt. Tức là mobile tải về <strong>gấp 2,3 lần</strong> lượng dữ liệu nó thực sự cần (over-fetching).</li>
+<li><strong>Bộ small:</strong> chênh lệch thời gian nằm trong nhiễu đo, khoảng min–max chồng lên nhau, nên <strong>không kết luận về tốc độ</strong>. Lợi ích ở bộ small là số request, số call và payload.</li>
+<li><strong>Lần lạnh</strong> dao động mạnh, từ 87 đến 968 ms, và mỗi tổ hợp chỉ có một mẫu lạnh, nên nhóm không dùng nó để xếp hạng các biến thể.</li>
+</ol>
+<h3>4.3. Waterfall</h3>
+<p>Thanh xanh là một request, vạch đỏ là mốc màn hình hoàn tất. File đầy đủ 16 tổ hợp: <code>results/waterfall.html</code>.</p>
+<p><strong>Baseline web, small:</strong> 7 request <strong>nối đuôi nhau</strong>, p1 và p2 bị gọi hai lần.</p>
+<p><img src="results/waterfall-small-web-baseline.png" alt=""></p>
+<p><strong>BFF web, small:</strong> 1 request.</p>
+<p><img src="results/waterfall-small-web-bff.png" alt=""></p>
+<p><strong>GraphQL (loader) web, small:</strong> 1 request.</p>
+<p><img src="results/waterfall-small-web-graphql-loader.png" alt=""></p>
+<p><strong>Baseline web, large:</strong> 202 request tuần tự.</p>
+<p><img src="results/waterfall-large-web-baseline.png" alt=""></p>
+<p><strong>BFF và GraphQL mobile, large:</strong> vẫn 1 request, payload khoảng 19.8 KB.</p>
+<p><img src="results/waterfall-large-mobile-bff.png" alt="">
+<img src="results/waterfall-large-mobile-graphql-loader.png" alt=""></p>
+<h3>4.4. Trace N+1 trước và sau khi sửa (GraphQL, bộ small)</h3>
+<p>Tạo bằng <code>npm run trace</code>. Mọi dòng có cùng <code>x-request-id</code>, tức là đều sinh ra từ <strong>một</strong> request của client.</p>
+<p><strong>Trước khi sửa</strong> (<code>GQL_MODE=naive</code>, file <code>results/trace-graphql-naive-small.log</code>):</p>
+<pre><code>gateway POST /graphql
+user    GET /users/u1
+order   GET /orders?userId=u1
+product GET /products/p1
+product GET /products/p2
+product GET /products/p2     ← trùng
+product GET /products/p3
+product GET /products/p1     ← trùng
+product: calls=5 db=5        (bộ large: calls=200 db=200)
+</code></pre>
+<p><strong>Sau khi sửa</strong> (<code>GQL_MODE=loader</code>, file <code>results/trace-graphql-loader-small.log</code>):</p>
+<pre><code>gateway POST /graphql
+user    GET /users/u1
+order   GET /orders?userId=u1
+product GET /products?ids=p1,p2,p3   ← 1 call, đã dedup
+product: calls=1 db=1        (bộ large: calls=1 db=1)
+</code></pre>
+<h3>4.5. Call graph nội bộ của BFF (<code>results/trace-bff-small.log</code>)</h3>
+<pre><code>gateway GET /bff/web/dashboard/u1          [gw-xxxx]
+  ├─ order   GET /orders?userId=u1         ┐ song song (cùng mili-giây)
+  ├─ user    GET /users/u1                 ┘
+  └─ product GET /products?ids=p1,p2,p3    1 batch, đã dedup
+</code></pre>
+<p>BFF mobile (<code>/bff/mobile/orders/u1</code>) có call graph giống hệt (<code>results/trace-mobile-bff-small.log</code>). Hai endpoint chỉ khác bước cắt field. GraphQL thì gọi user <strong>rồi mới</strong> gọi orders, vì resolver của field con chờ field cha.</p>
+<h3>4.6. Khi Product Service chậm hoặc lỗi</h3>
+<p><code>npm run verify</code> (gọi từ Node) và <code>npm run smoke</code> (trình duyệt thật), bộ small:</p>
+<table>
+<thead>
+<tr>
+<th>Lỗi</th>
+<th>Baseline</th>
+<th>BFF</th>
+<th>GraphQL</th>
+<th>Hiển thị</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PRODUCT_FAULT=error</code> (503)</td>
+<td>5 lỗi, 8 ms</td>
+<td>5 lỗi, 42 ms</td>
+<td>5 lỗi, 39 ms</td>
+<td>Đủ 5 đơn, product &quot;⚠ không tải được&quot;</td>
+</tr>
+<tr>
+<td><code>PRODUCT_FAULT=slow</code> (2 s, timeout 1 s)</td>
+<td><strong>~5 000 ms</strong></td>
+<td><strong>~1 070 ms</strong></td>
+<td><strong>~1 040 ms</strong></td>
+<td>Đủ 5 đơn, product &quot;⚠ không tải được&quot;</td>
+</tr>
+</tbody></table>
+<ul>
+<li>Khi Product chậm, baseline chờ <strong>5 lần timeout nối tiếp</strong> (với bộ large sẽ khoảng 200 s). BFF và GraphQL chỉ chờ <strong>một</strong> timeout, vì chỉ có một call batch. Đây là lợi ích phụ của việc gom lô.</li>
+<li>Bản mobile cho cùng kết quả: 5 thẻ đơn, mỗi thẻ có &quot;⚠&quot;, và 5 lỗi.</li>
+</ul>
+<p><img src="results/fault-error-graphql.png" alt="GraphQL web khi Product trả 503"></p>
+<h3>4.7. Giao diện mobile</h3>
+<p><img src="results/mobile-graphql.png" alt="Mobile, GraphQL"></p>
+<hr>
+<h2>5. Trade-off và giới hạn</h2>
+<h3>5.1. So sánh ba cách ghép dữ liệu</h3>
+<table>
+<thead>
+<tr>
+<th>Tiêu chí</th>
+<th>Baseline</th>
+<th>BFF</th>
+<th>GraphQL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Request từ client</td>
+<td>2 + N, tuần tự</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Call tới Product</td>
+<td>N</td>
+<td>1 (dedup + batch tự viết)</td>
+<td>naive N, loader 1</td>
+</tr>
+<tr>
+<td>Thêm client mới (mobile)</td>
+<td>Client tự cắt, vẫn tải đủ</td>
+<td><strong>Thêm endpoint</strong> và deploy lại server</td>
+<td><strong>Viết query mới</strong>, server không đổi</td>
+</tr>
+<tr>
+<td>Payload mobile (large)</td>
+<td>46.5 KB, như web</td>
+<td>19.8 KB</td>
+<td>19.8 KB</td>
+</tr>
+<tr>
+<td>Song song hóa</td>
+<td>Do client quyết định (ở đây tuần tự)</td>
+<td>Toàn quyền (<code>Promise.all</code>)</td>
+<td>Theo cây resolver (user rồi mới orders)</td>
+</tr>
+<tr>
+<td>Rủi ro N+1</td>
+<td>Có, ở client</td>
+<td>Thấp</td>
+<td><strong>Cao nếu quên DataLoader</strong></td>
+</tr>
+<tr>
+<td>HTTP cache / CDN</td>
+<td>Cache từng resource</td>
+<td><code>GET</code> dễ cache</td>
+<td><code>POST</code> khó cache, cần persisted query</td>
+</tr>
+<tr>
+<td>Lỗi một phần</td>
+<td>Client tự xử lý</td>
+<td>Tự định nghĩa <code>errors[]</code></td>
+<td>Có sẵn: nullable + <code>errors[].path</code></td>
+</tr>
+<tr>
+<td>Bảo mật</td>
+<td>Browser thấy mọi service, phải mở CORS</td>
+<td>Service ẩn sau gateway</td>
+<td>Service ẩn; query tùy ý cần giới hạn độ sâu/độ phức tạp</td>
+</tr>
+<tr>
+<td>Vận hành</td>
+<td>Đơn giản nhất</td>
+<td>Thêm một service mỗi loại client</td>
+<td>Thêm schema, công cụ, giám sát resolver</td>
+</tr>
+</tbody></table>
+<p><strong>Kết luận của nhóm:</strong></p>
+<ul>
+<li><strong>BFF</strong> phù hợp khi ít loại client và màn hình ổn định. Server kiểm soát hoàn toàn response, dễ cache, dễ tối ưu song song.</li>
+<li><strong>GraphQL</strong> phù hợp khi nhiều client cùng dùng một mô hình dữ liệu và yêu cầu thay đổi thường xuyên. Thêm mobile không phải sửa server. Đổi lại <strong>bắt buộc phải batch bằng DataLoader</strong>: bản naive vẫn gửi 200 call nội bộ dù client chỉ gửi 1 request.</li>
+<li><strong>Baseline</strong> chỉ chấp nhận được khi dữ liệu rất nhỏ. Nó chậm dần theo số đơn, buộc mobile tải dữ liệu thừa, và chịu N lần timeout khi một service chậm.</li>
+</ul>
+<h3>5.2. Giới hạn của phép đo</h3>
+<ol>
+<li><strong>Chạy localhost:</strong> độ trễ mạng gần như bằng 0. Trên mạng thật (mỗi request mất 50–200 ms), baseline với 202 request tuần tự sẽ chậm hơn nhiều so với số đo. Payload nhỏ của mobile cũng chưa thể hiện thành thời gian, vì localhost không bị giới hạn băng thông.</li>
+<li><strong>&quot;CSDL&quot; là JSON trong RAM:</strong> một query gần như không tốn thời gian. Vì vậy <strong>số lượng</strong> call/query có ý nghĩa hơn thời gian. Với CSDL thật, N+1 còn tốn thêm connection và I/O.</li>
+<li><strong>Một máy, một user, không có tải đồng thời:</strong> không đo throughput hay ảnh hưởng của N+1 khi nhiều người dùng cùng lúc.</li>
+<li><strong>Ít lần chạy</strong> (1 lạnh + 5 ấm). Ở bộ small các khoảng min–max chồng nhau. Lần lạnh chỉ có một mẫu và chỉ là khởi động lại process Node (chưa xoá cache của hệ điều hành).</li>
+<li><strong>Thời gian màn hình hoàn tất</strong> gồm cả thời gian tải HTML/JS (giống nhau ở mọi biến thể) và overhead của Playwright và Edge.</li>
+<li><strong>Payload</strong> là <code>encodedBodySize</code> của response, chưa nén gzip, không tính header và body của request (query GraphQL khoảng 200 B mỗi lần).</li>
+<li><strong>Client mobile là trang web với viewport 390 px</strong>, không phải app native trên mạng di động.</li>
+<li><strong>Chưa làm:</strong> retry, circuit breaker, timeout cho User/Order (nếu chúng chậm thì gateway cũng chậm theo), giới hạn độ sâu query GraphQL, persisted query, cache. Message lỗi khác nhau giữa các biến thể: baseline và naive báo theo từng product (<code>/products/p1 → …</code>), còn BFF và loader báo theo lô (<code>/products → …</code>). <code>verify</code> chỉ so <code>path</code> của lỗi.</li>
+</ol>
+<hr>
+<h2>6. Tái lập kết quả</h2>
+<pre><code class="language-powershell">npm install
+npm test           # 24 test
+npm run verify     # đối chiếu dữ liệu web + mobile, N+1, lỗi → results/verify.txt
+npm run trace      # trace → results/trace-*.log
+npm run bench      # đo → results/raw.csv, summary.md, waterfall.html (khoảng 3–4 phút)
+npm run report     # sinh REPORT.html từ REPORT.md
+</code></pre>
+<p>Hướng dẫn triển khai và demo chi tiết có trong <code>README.md</code>.</p>
+
+</main>
+</body>
+</html>
