@@ -1,0 +1,25 @@
+{
+  "name": "api-composition",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node scripts/seed.js",
+    "start": "concurrently -k -n user,order,product,gw \"node services/user/index.js\" \"node services/order/index.js\" \"node services/product/index.js\" \"node gateway/index.js\"",
+    "test": "node --test tests/",
+    "smoke": "node scripts/smoke.js",
+    "trace": "node scripts/trace.js",
+    "verify": "node scripts/verify.js",
+    "bench": "node scripts/bench.js"
+  },
+  "dependencies": {
+    "concurrently": "^10.0.5",
+    "cors": "^2.8.6",
+    "dataloader": "^2.2.3",
+    "express": "^5.2.1",
+    "graphql": "^17.0.2",
+    "graphql-yoga": "^5.24.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0"
+  }
+}

@@ -1,0 +1,142 @@
+[
+  {
+    "id": "p1",
+    "name": "Bàn phím cơ",
+    "price": 310000,
+    "thumbnail": "https://picsum.photos/seed/p1/64",
+    "category": "audio"
+  },
+  {
+    "id": "p2",
+    "name": "Chuột không dây",
+    "price": 430000,
+    "thumbnail": "https://picsum.photos/seed/p2/64",
+    "category": "storage"
+  },
+  {
+    "id": "p3",
+    "name": "Tai nghe Bluetooth",
+    "price": 90000,
+    "thumbnail": "https://picsum.photos/seed/p3/64",
+    "category": "storage"
+  },
+  {
+    "id": "p4",
+    "name": "Màn hình 24 inch",
+    "price": 140000,
+    "thumbnail": "https://picsum.photos/seed/p4/64",
+    "category": "storage"
+  },
+  {
+    "id": "p5",
+    "name": "Ổ SSD 1TB",
+    "price": 440000,
+    "thumbnail": "https://picsum.photos/seed/p5/64",
+    "category": "audio"
+  },
+  {
+    "id": "p6",
+    "name": "Webcam HD",
+    "price": 130000,
+    "thumbnail": "https://picsum.photos/seed/p6/64",
+    "category": "network"
+  },
+  {
+    "id": "p7",
+    "name": "Loa mini",
+    "price": 380000,
+    "thumbnail": "https://picsum.photos/seed/p7/64",
+    "category": "audio"
+  },
+  {
+    "id": "p8",
+    "name": "Sạc dự phòng",
+    "price": 100000,
+    "thumbnail": "https://picsum.photos/seed/p8/64",
+    "category": "storage"
+  },
+  {
+    "id": "p9",
+    "name": "Cáp USB-C",
+    "price": 350000,
+    "thumbnail": "https://picsum.photos/seed/p9/64",
+    "category": "storage"
+  },
+  {
+    "id": "p10",
+    "name": "Đế tản nhiệt",
+    "price": 10000,
+    "thumbnail": "https://picsum.photos/seed/p10/64",
+    "category": "audio"
+  },
+  {
+    "id": "p11",
+    "name": "Balo laptop",
+    "price": 420000,
+    "thumbnail": "https://picsum.photos/seed/p11/64",
+    "category": "accessory"
+  },
+  {
+    "id": "p12",
+    "name": "Bút cảm ứng",
+    "price": 300000,
+    "thumbnail": "https://picsum.photos/seed/p12/64",
+    "category": "accessory"
+  },
+  {
+    "id": "p13",
+    "name": "Hub USB",
+    "price": 140000,
+    "thumbnail": "https://picsum.photos/seed/p13/64",
+    "category": "accessory"
+  },
+  {
+    "id": "p14",
+    "name": "Micro thu âm",
+    "price": 100000,
+    "thumbnail": "https://picsum.photos/seed/p14/64",
+    "category": "network"
+  },
+  {
+    "id": "p15",
+    "name": "Đèn bàn LED",
+    "price": 270000,
+    "thumbnail": "https://picsum.photos/seed/p15/64",
+    "category": "accessory"
+  },
+  {
+    "id": "p16",
+    "name": "Giá đỡ điện thoại",
+    "price": 90000,
+    "thumbnail": "https://picsum.photos/seed/p16/64",
+    "category": "network"
+  },
+  {
+    "id": "p17",
+    "name": "Thẻ nhớ 128GB",
+    "price": 250000,
+    "thumbnail": "https://picsum.photos/seed/p17/64",
+    "category": "network"
+  },
+  {
+    "id": "p18",
+    "name": "Router WiFi 6",
+    "price": 160000,
+    "thumbnail": "https://picsum.photos/seed/p18/64",
+    "category": "audio"
+  },
+  {
+    "id": "p19",
+    "name": "Bàn di chuột",
+    "price": 20000,
+    "thumbnail": "https://picsum.photos/seed/p19/64",
+    "category": "accessory"
+  },
+  {
+    "id": "p20",
+    "name": "Ghế công thái học",
+    "price": 280000,
+    "thumbnail": "https://picsum.photos/seed/p20/64",
+    "category": "storage"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "u1",
+    "name": "Nguyễn Văn An",
+    "email": "an@example.com"
+  },
+  {
+    "id": "u2",
+    "name": "Trần Thị Bình",
+    "email": "binh@example.com"
+  }
+]
