@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard — API composition</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 24px; color: #222; }
+    nav a { margin-right: 12px; padding: 4px 10px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; color: #333; }
+    nav a.active { background: #333; color: #fff; }
+    table { border-collapse: collapse; margin-top: 12px; }
+    th, td { border-bottom: 1px solid #eee; padding: 4px 10px; text-align: left; }
+    .warn { color: #b45309; }
+    #timing { color: #666; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a data-variant="baseline" href="?variant=baseline">Baseline (REST)</a>
+    <a data-variant="bff" href="?variant=bff">BFF</a>
+    <a data-variant="graphql" href="?variant=graphql">GraphQL</a>
+  </nav>
+  <h1 id="title">Đang tải…</h1>
+  <p id="timing"></p>
+  <p id="errors" class="warn"></p>
+  <table>
+    <thead><tr><th>Mã đơn</th><th>Product</th><th>SL</th><th>Đơn giá</th><th>Trạng thái</th><th>Ngày</th></tr></thead>
+    <tbody id="orders"></tbody>
+  </table>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
