@@ -85,6 +85,16 @@ graphql  | Nguyễn Văn An — 5 đơn | … hoàn tất sau 1111 ms | rows=5 |
 
 ![GraphQL khi Product trả 503](../results/fault-error-graphql.png)
 
+### Mobile cũng theo cùng policy (`npm run smoke -- mobile`, `PRODUCT_FAULT=error`)
+
+```
+mobile/baseline | Đơn hàng của tôi (5) | … 150 ms | rows=5 | 5 lỗi — /products/p1 → HTTP 503
+mobile/bff      | Đơn hàng của tôi (5) | … 118 ms | rows=5 | 5 lỗi — /products → HTTP 503
+mobile/graphql  | Đơn hàng của tôi (5) | … 90 ms  | rows=5 | 5 lỗi — /products → HTTP 503
+```
+
+BFF mobile dùng chung `loadOrdersWithProducts` với BFF web, nên có cùng cách xử lý lỗi. GraphQL `MobileOrders` dùng chung resolver `Order.product`, nên cũng vậy.
+
 ## 5. Nhận xét
 
 - **Khi Product chậm**: baseline mất **khoảng 5 s** vì phải chờ 5 timeout nối tiếp (1 s × N đơn, và sẽ khoảng 200 s với bộ large). BFF và GraphQL chỉ mất **khoảng 1,1 s** vì chỉ có 1 call batch nên chỉ chờ 1 timeout. Đây là lợi ích phụ của batching.

@@ -1,7 +1,7 @@
 # bff (GQL_MODE=loader, DATASET=small)
-02:25:10.999 [gw-4cfc4831] gateway GET /bff/web/dashboard/u1
-02:25:11.026 [gw-4cfc4831] order GET /orders?userId=u1
-02:25:11.026 [gw-4cfc4831] user GET /users/u1
-02:25:11.038 [gw-4cfc4831] product GET /products?ids=p1,p2,p3
+06:32:35.088 [gw-97d4dfa6] gateway GET /bff/web/dashboard/u1
+06:32:35.112 [gw-97d4dfa6] order GET /orders?userId=u1
+06:32:35.112 [gw-97d4dfa6] user GET /users/u1
+06:32:35.120 [gw-97d4dfa6] product GET /products?ids=p1,p2,p3
 
 user: calls=1 db=1 | order: calls=1 db=1 | product: calls=1 db=1

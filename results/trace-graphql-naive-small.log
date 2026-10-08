@@ -1,11 +1,11 @@
 # graphql (GQL_MODE=naive, DATASET=small)
-02:25:08.950 [gw-ea4b5a3a] gateway POST /graphql
-02:25:08.984 [gw-ea4b5a3a] user GET /users/u1
-02:25:08.990 [gw-ea4b5a3a] order GET /orders?userId=u1
-02:25:08.998 [gw-ea4b5a3a] product GET /products/p1
-02:25:08.999 [gw-ea4b5a3a] product GET /products/p2
-02:25:09.000 [gw-ea4b5a3a] product GET /products/p2
-02:25:09.000 [gw-ea4b5a3a] product GET /products/p3
-02:25:09.001 [gw-ea4b5a3a] product GET /products/p1
+06:32:32.627 [gw-3c9b5b74] gateway POST /graphql
+06:32:32.661 [gw-3c9b5b74] user GET /users/u1
+06:32:32.667 [gw-3c9b5b74] order GET /orders?userId=u1
+06:32:32.681 [gw-3c9b5b74] product GET /products/p1
+06:32:32.683 [gw-3c9b5b74] product GET /products/p2
+06:32:32.683 [gw-3c9b5b74] product GET /products/p3
+06:32:32.684 [gw-3c9b5b74] product GET /products/p2
+06:32:32.685 [gw-3c9b5b74] product GET /products/p1
 
 user: calls=1 db=1 | order: calls=1 db=1 | product: calls=5 db=5

@@ -1,0 +1,7 @@
+# mobile graphql (GQL_MODE=loader, DATASET=small)
+06:32:36.435 [gw-9595689a] gateway POST /graphql
+06:32:36.472 [gw-9595689a] user GET /users/u1
+06:32:36.480 [gw-9595689a] order GET /orders?userId=u1
+06:32:36.484 [gw-9595689a] product GET /products?ids=p1,p2,p3
+
+user: calls=1 db=1 | order: calls=1 db=1 | product: calls=1 db=1

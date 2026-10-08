@@ -1,7 +1,7 @@
 # graphql (GQL_MODE=loader, DATASET=small)
-02:25:10.039 [gw-11b913ff] gateway POST /graphql
-02:25:10.076 [gw-11b913ff] user GET /users/u1
-02:25:10.084 [gw-11b913ff] order GET /orders?userId=u1
-02:25:10.089 [gw-11b913ff] product GET /products?ids=p1,p2,p3
+06:32:33.829 [gw-171a2bcf] gateway POST /graphql
+06:32:33.868 [gw-171a2bcf] user GET /users/u1
+06:32:33.876 [gw-171a2bcf] order GET /orders?userId=u1
+06:32:33.883 [gw-171a2bcf] product GET /products?ids=p1,p2,p3
 
 user: calls=1 db=1 | order: calls=1 db=1 | product: calls=1 db=1

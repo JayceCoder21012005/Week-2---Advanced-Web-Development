@@ -7,7 +7,11 @@
 
 Dashboard web hiển thị **tên người dùng + danh sách đơn, mỗi đơn kèm tên product**. Dữ liệu nằm ở 3 service độc lập (User, Order, Product), mỗi service một "CSDL" riêng (file JSON riêng). Câu hỏi: ghép dữ liệu ở đâu — browser (baseline), BFF, hay GraphQL — và chi phí (số request, số call nội bộ, số DB query, thời gian, payload) thay đổi thế nào khi số đơn tăng.
 
-**Phạm vi:** chỉ client **web**. Không làm client/endpoint mobile (quyết định của nhóm).
+**Phạm vi:** hai loại client dùng chung dữ liệu:
+- **web dashboard**: cần đủ field của đơn.
+- **app mobile**: chỉ cần mã đơn, trạng thái, tên product và thumbnail.
+
+> **Cập nhật 2026-10-08:** bản đầu chỉ có web. Phần mobile được bổ sung sau theo yêu cầu của đề, gồm trang `web/mobile.html`, `GET /bff/mobile/orders/:userId` và query `MobileOrders`. Chi tiết ở `07-mobile.md`.
 
 ## 2. Kiến trúc
 
@@ -160,4 +164,4 @@ src/
 
 - Mọi thứ chạy localhost → độ trễ mạng gần 0; chênh lệch thực tế sẽ lớn hơn. Có thể thêm `NET_DELAY_MS` mô phỏng nếu cần.
 - "DB" là JSON trong RAM → DB query rất rẻ; đếm số lượng quan trọng hơn thời gian.
-- Không làm client mobile → không chứng minh được lợi ích "mỗi client một endpoint" của BFF.
+- Client mobile là một trang web với khung điện thoại (viewport 390 px), không phải app native. Nó vẫn đủ để so sánh "mỗi client một endpoint" (BFF) với "mỗi client một query" (GraphQL).

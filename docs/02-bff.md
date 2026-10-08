@@ -6,7 +6,11 @@
 
 **Backend for Frontend** là một lớp server viết riêng cho **một loại client**. Client gọi đúng **một endpoint**, BFF thay mặt client gọi các service nội bộ, ghép dữ liệu rồi trả về đúng hình dạng màn hình cần.
 
-- Mỗi loại client có một BFF/endpoint riêng (web, mobile…). Nhóm chỉ làm **web**: `GET /bff/web/dashboard/:userId`.
+- Mỗi loại client có một endpoint riêng:
+  - `GET /bff/web/dashboard/:userId` cho web.
+  - `GET /bff/mobile/orders/:userId` cho mobile, xem `07-mobile.md`.
+
+  Cả hai dùng chung phần lấy dữ liệu (`loadOrdersWithProducts`), chỉ khác bước cắt field ở cuối.
 - Logic ghép chuyển từ browser (mạng chậm, không tin cậy) vào **mạng nội bộ** (nhanh, gần service).
 - Browser không cần biết địa chỉ các service. Chỉ gateway mới gọi tới chúng.
 
