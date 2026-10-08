@@ -100,3 +100,41 @@ test('GraphQL: product lỗi → partial, product null, errors có path từng �
     assert.equal(body.errors[0].message, '/products → HTTP 503');
   } finally { s.close(); }
 });
+
+/** Product Service giả: batch trả rỗng, lẻ trả 404 — product id không tồn tại. */
+async function startWithEmptyProducts(gqlMode) {
+  const { default: express } = await import('express');
+  const stub = express();
+  stub.get('/products', (req, res) => res.json([]));
+  stub.get('/products/:id', (req, res) => res.status(404).json({ error: 'product not found' }));
+  const u = createUserApp({ dataset: 'small' });
+  const o = createOrderApp({ dataset: 'small' });
+  const [us, os, ps] = await Promise.all([listen(u.app), listen(o.app), listen(stub)]);
+  const gw = await listen(createGatewayApp({ urls: { user: us.url, order: os.url, product: ps.url }, gqlMode }));
+  return { url: gw.url, close: () => close(us.server, os.server, ps.server, gw.server) };
+}
+
+for (const gqlMode of ['naive', 'loader']) {
+  test(`product không tồn tại → BFF và GraphQL ${gqlMode} đều đánh dấu lỗi giống baseline`, async () => {
+    const s = await startWithEmptyProducts(gqlMode);
+    try {
+      const bff = await (await fetch(`${s.url}/bff/web/dashboard/u1`)).json();
+      const body = await gql(s.url);
+      for (const errors of [bff.errors, body.errors]) {
+        assert.equal(errors.length, 5);
+        assert.equal(errors.find((e) => e.path[2] === 0).message, '/products/p1 → HTTP 404');
+      }
+    } finally { s.close(); }
+  });
+}
+
+test('User Service sập → fetcher GraphQL báo lỗi, không coi là "không tìm thấy user"', async () => {
+  const { createFetchers } = await import('../web/fetchers.js');
+  const s = await startInProcess();
+  const dead = await listen(createUserApp({ dataset: 'small' }).app);
+  close(dead.server); // cổng đã đóng → kết nối bị từ chối
+  const gw = await listen(createGatewayApp({ urls: { user: dead.url, order: s.url, product: s.url } }));
+  try {
+    await assert.rejects(createFetchers({ services: {}, gateway: gw.url }).graphql('u1'));
+  } finally { s.close(); close(gw.server); }
+});

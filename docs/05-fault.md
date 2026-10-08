@@ -12,6 +12,7 @@
   { "path": ["user", "orders", 0, "product"], "message": "/products → HTTP 503" }
   ```
 - **Không** thay tên hoặc giá product bằng giá trị giả. UI hiển thị `⚠ không tải được product`.
+- **Product id không tồn tại** (batch trả về thiếu id): BFF và DataLoader cũng thêm lỗi `"/products/pX → HTTP 404"` cho đúng đơn đó, giống baseline và GraphQL naive. DataLoader làm được việc này bằng cách trả `Error` ở đúng vị trí trong mảng kết quả. Có test `product không tồn tại → …`.
 - User hoặc Order lỗi thì không có gì để hiển thị: BFF trả 404 (user không tồn tại) hoặc 502. GraphQL trả `user: null` hoặc `errors`.
 
 **Vì sao chọn partial thay vì thất bại toàn bộ:** tên product chỉ là phần bổ sung. User vẫn xem được danh sách đơn, trạng thái, số lượng và đơn giá (`unitPrice` là dữ liệu thật của Order Service, tức giá lúc đặt hàng). Timeout cũng chặn thời gian chờ tối đa, nên một service chậm không kéo cả màn hình chậm theo.
@@ -88,4 +89,7 @@ graphql  | Nguyễn Văn An — 5 đơn | … hoàn tất sau 1111 ms | rows=5 |
 
 - **Khi Product chậm**: baseline mất **khoảng 5 s** vì phải chờ 5 timeout nối tiếp (1 s × N đơn, và sẽ khoảng 200 s với bộ large). BFF và GraphQL chỉ mất **khoảng 1,1 s** vì chỉ có 1 call batch nên chỉ chờ 1 timeout. Đây là lợi ích phụ của batching.
 - Ba biến thể giữ **cùng hình dạng lỗi** (`path` theo từng đơn), nên UI dùng chung một cách hiển thị.
+- **Message lỗi khác nhau giữa các biến thể**: baseline và GraphQL naive báo theo từng product (`/products/p1 → …`), còn BFF và loader báo theo batch (`/products → …`). `verify` chỉ so `path`, không so message.
+- **GraphQL khi User hoặc Order sập**: `data.user` thành `null` kèm `errors`. Fetcher web phân biệt trường hợp này với "không tìm thấy user" (null mà không có lỗi) và hiển thị `Lỗi: …` giống BFF.
+- **User và Order không có timeout**: chỉ Product có timeout. Nếu User hoặc Order chậm thì BFF và GraphQL cũng chậm theo.
 - **Giới hạn của policy**: không retry, không circuit breaker, không cache product cũ. Product Service sập thì mọi request đều chờ hết 1 s timeout (với lỗi `slow`). Circuit breaker sẽ giúp trả lỗi ngay.

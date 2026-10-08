@@ -14,15 +14,15 @@ PASS [large, GQL_MODE=loader] baseline == BFF
 PASS [large, GQL_MODE=loader] baseline == GraphQL
   200 đơn; GraphQL → product calls=1, db=1
 PASS [large, GQL_MODE=loader] sau sửa: product calls == 1
-  [fault=error] baseline: 8ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 → HTTP 503"
+  [fault=error] baseline: 7ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 → HTTP 503"
 PASS [fault=error] baseline: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=error] bff: 42ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
+  [fault=error] bff: 34ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
 PASS [fault=error] bff: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=error] graphql: 39ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
+  [fault=error] graphql: 24ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products → HTTP 503"
 PASS [fault=error] graphql: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] baseline: 5031ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 timeout after 1000ms"
+  [fault=slow] baseline: 5050ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products/p1 timeout after 1000ms"
 PASS [fault=slow] baseline: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] bff: 1073ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
+  [fault=slow] bff: 1047ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
 PASS [fault=slow] bff: giữ user + đơn, product null, 1 lỗi/đơn
-  [fault=slow] graphql: 1043ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
+  [fault=slow] graphql: 1025ms, user=Nguyễn Văn An, products=[null,null,null,null,null], errors=5, message="/products timeout after 1000ms"
 PASS [fault=slow] graphql: giữ user + đơn, product null, 1 lỗi/đơn

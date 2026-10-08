@@ -18,25 +18,40 @@ export async function startStack(env = {}) {
     });
     p.stdout.on('data', (d) => logs.push(...String(d).split(/\r?\n/).filter(Boolean)));
     p.stderr.on('data', (d) => process.stderr.write(`[${name}] ${d}`));
+    p.name = name;
     return p;
   });
-  await waitReady();
+  const stop = () => Promise.all(procs.map((p) => (p.exitCode !== null || p.signalCode !== null
+    ? undefined
+    : new Promise((r) => { p.once('exit', r); p.kill(); }))));
+  try {
+    await waitReady(procs);
+  } catch (e) {
+    await stop();
+    throw e;
+  }
   logs.length = 0; // bỏ log khởi động
-  return {
-    logs,
-    stop: () => Promise.all(procs.map((p) => new Promise((r) => { p.once('exit', r); p.kill(); }))),
-  };
+  return { logs, stop };
 }
 
-async function waitReady() {
+/** Chờ cả 4 process trả lời; process nào thoát sớm (vd. EADDRINUSE) → lỗi ngay, không đo nhầm stack cũ. */
+async function waitReady(procs) {
   const probes = [...SERVICES.map((s) => `${urlOf(s)}/metrics`), `${urlOf('gateway')}/config`];
   for (let i = 0; i < 100; i++) {
+    const dead = procs.find((p) => p.exitCode !== null);
+    if (dead) throw new Error(`${dead.name} exited (code ${dead.exitCode}) — cổng 4000-4003 đang bị chiếm? (tắt \`npm start\` trước)`);
     try {
       await Promise.all(probes.map(async (u) => { if (!(await fetch(u)).ok) throw new Error(u); }));
+      await sleep(200); // process vừa lỗi cổng có thể thoát trễ hơn probe
+      const late = procs.find((p) => p.exitCode !== null);
+      if (late) throw new Error(`${late.name} exited (code ${late.exitCode}) — cổng đang bị chiếm?`);
       return;
-    } catch { await sleep(100); }
+    } catch (e) {
+      if (/exited/.test(e.message)) throw e;
+      await sleep(100);
+    }
   }
-  throw new Error('stack không lên được — cổng 4000-4003 đang bị chiếm? (tắt `npm start` trước)');
+  throw new Error('stack không lên được sau 10 s');
 }
 
 export const resetMetrics = () =>

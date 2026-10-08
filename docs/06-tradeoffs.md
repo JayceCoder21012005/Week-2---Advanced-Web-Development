@@ -30,7 +30,7 @@
 4. **Ít lần chạy** (1 lạnh + 5 ấm): ở bộ small, các khoảng min–max chồng lên nhau, **không kết luận được về tốc độ**. GraphQL naive (63.8 ms) còn nhanh hơn loader (72.2 ms) ở small, đây là nhiễu.
 5. **"Lạnh" chỉ là khởi động lại process Node**: chưa xóa cache của hệ điều hành hay đĩa, nên chưa phải cold start thật như trên serverless.
 6. **Thời gian màn hình hoàn tất gồm cả tải HTML/JS** (giống nhau giữa các biến thể) và có overhead của Playwright và Edge.
-7. **Payload là `encodedBodySize`** (chưa nén gzip, vì Express không bật compression). Không tính header.
+7. **Payload là `encodedBodySize` của response** (chưa nén gzip, vì Express không bật compression). Không tính header, cũng không tính body của request (query GraphQL khoảng 200 B mỗi lần).
 8. **Không có client mobile**: chưa chứng minh được lợi ích "mỗi client một endpoint" của BFF, hay "mỗi client một query" của GraphQL.
 9. GraphQL trong bài chưa có giới hạn độ sâu hoặc độ phức tạp của query, chưa có persisted query, chưa cache.
 

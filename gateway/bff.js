@@ -1,4 +1,4 @@
-import { toUserView, toOrderView, productError } from '../shared/contract.js';
+import { toUserView, toOrderView, productError, httpError } from '../shared/contract.js';
 
 /**
  * BFF cho dashboard web:
@@ -19,8 +19,14 @@ export async function composeDashboard(clients, userId) {
       failure = e; // policy: partial + đánh dấu lỗi, không bịa dữ liệu
     }
   }
+  // Lỗi theo từng đơn: cả batch hỏng, hoặc id không có trong kết quả (giống 404 của baseline).
+  const errors = orders.flatMap((o, i) => {
+    if (failure) return [productError(i, failure.message)];
+    if (!byId.has(o.productId)) return [productError(i, httpError(`/products/${o.productId}`, 404).message)];
+    return [];
+  });
   return {
     user: { ...toUserView(user), orders: orders.map((o) => toOrderView(o, byId.get(o.productId))) },
-    errors: failure ? orders.map((_, i) => productError(i, failure.message)) : [],
+    errors,
   };
 }

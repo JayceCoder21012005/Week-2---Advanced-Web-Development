@@ -1,6 +1,7 @@
 import { createSchema, createYoga } from 'graphql-yoga';
 import DataLoader from 'dataloader';
 import { createClients } from './clients.js';
+import { httpError } from '../shared/contract.js';
 
 const typeDefs = /* GraphQL */ `
   type Query { user(id: ID!): User }
@@ -36,7 +37,8 @@ export function createGraphQL({ urls, mode }) {
       // Loader mới cho MỖI request: dedup/cache chỉ sống trong request này.
       const productLoader = new DataLoader(async (ids) => {
         const byId = new Map((await clients.getProductsByIds(ids)).map((p) => [p.id, p]));
-        return ids.map((id) => byId.get(id) ?? null);
+        // Error trong mảng kết quả → chỉ load() của id đó bị reject (giống 404 của naive/baseline).
+        return ids.map((id) => byId.get(id) ?? httpError(`/products/${id}`, 404));
       });
       return { clients, productLoader };
     },

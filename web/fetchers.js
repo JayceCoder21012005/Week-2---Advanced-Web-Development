@@ -32,6 +32,8 @@ export function createFetchers({ services, gateway = '' }) {
         body: JSON.stringify({ query: DASHBOARD_QUERY, variables: { userId } }),
       });
       const body = await res.json();
+      // user null KÈM lỗi = User/Order sập, không phải "không tìm thấy" → báo lỗi như BFF.
+      if (!body.data?.user && body.errors?.length) throw new Error(body.errors[0].message);
       return { user: body.data?.user ?? null, errors: (body.errors ?? []).map(({ path, message }) => ({ path, message })) };
     },
   };
