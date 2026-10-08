@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PORTS, SERVICE_URLS } from '../shared/config.js';
 import { logRequest } from '../shared/service.js';
+import { createClients } from './clients.js';
+import { composeDashboard } from './bff.js';
 
 const dir = (p) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -18,6 +20,14 @@ export function createGatewayApp({ urls = SERVICE_URLS, gqlMode = process.env.GQ
     res.set('x-request-id', req.headers['x-request-id']);
     logRequest('gateway', req.headers['x-request-id'], req);
     next();
+  });
+
+  app.get('/bff/web/dashboard/:userId', async (req, res) => {
+    try {
+      res.json(await composeDashboard(createClients(req.headers['x-request-id'], urls), req.params.userId));
+    } catch (e) {
+      res.status(e.status === 404 ? 404 : 502).json({ error: e.message });
+    }
   });
 
   return app;
